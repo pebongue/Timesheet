@@ -1,0 +1,28 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<configuration>
+    <configSections>
+        <sectionGroup name="userSettings" type="System.Configuration.UserSettingsGroup, System, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089" >
+            <section name="Aculocity.ProjectName.PL.Properties.Settings" type="System.Configuration.ClientSettingsSection, System, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089" allowExeDefinition="MachineToLocalUser" requirePermission="false" />
+        </sectionGroup>
+    </configSections>
+    <userSettings>
+        <Aculocity.ProjectName.PL.Properties.Settings>
+            <setting name="ParentLocation" serializeAs="String">
+                <value>0, 0</value>
+            </setting>
+            <setting name="ParentSize" serializeAs="String">
+                <value>0, 0</value>
+            </setting>
+        </Aculocity.ProjectName.PL.Properties.Settings>
+    </userSettings>
+  <connectionStrings>
+    <add
+			name="MasterDB"
+			providerName="System.Data.SqlClient"
+			connectionString="server=GVWDEVDB01\SQL2005;database=IMPRedux;Integrated Security=true; uid=gvwservices;Pwd=gvw;" />
+    <add
+			name="SecurityDB"
+			providerName="System.Data.SqlClient"
+			connectionString="server=GVWDEVDB01\SQL2005;database=UserSecurity;Integrated Security=true; uid=gvwservices;Pwd=gvw;" />
+  </connectionStrings>
+</configuration>

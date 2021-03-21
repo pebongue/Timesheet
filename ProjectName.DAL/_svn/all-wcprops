@@ -1,0 +1,29 @@
+K 25
+svn:wc:ra_dav:version-url
+V 69
+/svn/Aculocity_TimesheetDesktop/!svn/ver/22/trunk/src/ProjectName.DAL
+END
+ProjectName.DAL.csproj
+K 25
+svn:wc:ra_dav:version-url
+V 92
+/svn/Aculocity_TimesheetDesktop/!svn/ver/15/trunk/src/ProjectName.DAL/ProjectName.DAL.csproj
+END
+CryptoBaseEntity.cs
+K 25
+svn:wc:ra_dav:version-url
+V 88
+/svn/Aculocity_TimesheetDesktop/!svn/ver/4/trunk/src/ProjectName.DAL/CryptoBaseEntity.cs
+END
+TimesheetDAL.cs
+K 25
+svn:wc:ra_dav:version-url
+V 85
+/svn/Aculocity_TimesheetDesktop/!svn/ver/25/trunk/src/ProjectName.DAL/TimesheetDAL.cs
+END
+SomeClass.cs
+K 25
+svn:wc:ra_dav:version-url
+V 81
+/svn/Aculocity_TimesheetDesktop/!svn/ver/4/trunk/src/ProjectName.DAL/SomeClass.cs
+END

@@ -1,0 +1,546 @@
+﻿using System;
+using System.Windows.Forms.VisualStyles;
+using System.Xml.Serialization;
+using Aculocity.ProjectName.BLL;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Text;
+using System.Windows.Forms;
+using System.Configuration;
+using System.Data.SqlClient;
+using System.IO;
+
+namespace Aculocity.ProjectName.PL
+{
+    public partial class fviewTimesheet : Form
+    {
+        /// <summary>
+        /// Initialise component and display the name of the current user
+        /// </summary>
+        public fviewTimesheet()
+        {
+            InitializeComponent();
+
+            this.Text = "Aculocity Timesheet - " + System.Environment.UserName;
+        }
+
+        private Container m_components = null;
+
+        /// <summary>
+        /// reference to the timesheet BLL
+        /// </summary>
+        TimesheetBLL m_timeSheetBLL = new TimesheetBLL();
+
+        #region: Work Category & Comopany Selection
+        #endregion
+
+
+        #region: Timer
+        /// <summary>
+        /// user can start or stop timer
+        /// </summary>
+        private void cmdStartStopTime_Click(object sender, EventArgs e)
+        {
+            if (cmdStartStopTime.Text.Equals("Start Time"))
+            {
+                if (!ddlWorkCategory.Text.Equals("Select Work Category"))
+                {
+                    cmdStartStopTime.Text = "Stop Time";
+                    txtStartTime.Clear();
+                    txtStartTime.Text = DateTime.Now.ToLongTimeString();
+                    txtDuration.Text = DateTime.Now.ToLongTimeString();
+
+                    systemTimer.Enabled = true;
+                    systemTimer.Start();
+                }
+                else
+                {
+                    MessageBox.Show("Please select a work category", "Work Category required", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+            }
+            else
+            {
+                systemTimer.Stop();
+                cmdStartStopTime.Text = "Start Time";
+
+                try
+                {
+                    //m_timeSheetBLL.EntryDate = DateTime.Today.Date;
+                    //m_timeSheetBLL.WorkCategory = ddlWorkCategory.SelectedItem.ToString();
+                    //m_timeSheetBLL.Company = ddlCompany.SelectedItem.ToString();
+                    //m_timeSheetBLL.Comment = txtComments.Text;
+                    //m_timeSheetBLL.TimeSpent = duration.TotalHours;
+                    //Xml Serialization of TimeSheet
+                    TimeSpan duration = DateTime.Parse(txtDuration.Text).AddMinutes(30).Subtract(DateTime.Parse(txtStartTime.Text));
+                    DataSet ds = new DataSet();
+                    DataTable dt = TimeSheetXML();
+                    DataRow dr;
+                    dr = dt.NewRow();
+                    dr["EntryDate"] = DateTime.Today.Date;
+                    dr["WorkCategory"] = ddlWorkCategory.SelectedItem.ToString();
+                    dr["Company"] = ddlCompany.SelectedItem.ToString();
+                    dr["Comment"] = txtComments.Text;
+                    dr["TimeSpent"] = duration.TotalHours;
+
+                    if (cbBillable.Checked)
+                    {
+                        m_timeSheetBLL.BillableTime = duration.TotalHours;
+                        dr["Billable"] = duration.TotalHours;
+                    }
+                    else
+                    {
+                        //m_timeSheetBLL.BillableTime = 0.0;
+                        dr["Billable"] = 0.0;
+                    }
+
+                    dt.Rows.Add(dr);
+                    ds.Tables.Add(dt);
+                    FileStream fs = new FileStream(Environment.CurrentDirectory + @"\TimeSheet.xml",
+                                                   FileMode.Create);
+                    XmlSerializer xs = new XmlSerializer(typeof(DataSet));
+                    xs.Serialize(fs, ds);
+
+                    m_timeSheetBLL.UpdateTimesheet();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Current task could not be saved: "+ex.Message, "Save Failed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+                
+                txtStartTime.Text = "00:00:00";
+            }
+        }
+
+        private void systemTimer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
+        {
+            if (cmdStartStopTime.Enabled)
+            {
+                txtDuration.Text = DateTime.Now.ToLongTimeString();
+            }
+        }
+        #endregion
+
+        #region:XML
+        /// <summary>
+        /// Creating xml file for TimeSheet offline log, and Checking if file already exists
+        /// </summary>
+        public DataTable TimeSheetXML()
+        {
+            DataTable dt = new DataTable();
+            try
+            {
+                if (!File.Exists(Environment.CurrentDirectory + @"\TimeSheet.xml"))
+                {
+                    DataColumn Company = new DataColumn();
+                    Company.DataType = System.Type.GetType("System.String");
+                    Company.ColumnName = "Company";
+                    Company.DefaultValue = "Company";
+                    dt.Columns.Add(Company);
+
+                    DataColumn WorkCategory = new DataColumn();
+                    WorkCategory.DataType = System.Type.GetType("System.String");
+                    WorkCategory.ColumnName = "WorkCategory";
+                    WorkCategory.DefaultValue = "WorkCategory";
+                    dt.Columns.Add(WorkCategory);
+
+                    DataColumn Comments = new DataColumn();
+                    Comments.DataType = System.Type.GetType("System.String");
+                    Comments.ColumnName = "WorkCategory";
+                    Comments.DefaultValue = "WorkCategory";
+                    dt.Columns.Add(Comments);
+
+                    DataColumn EntryDate = new DataColumn();
+                    EntryDate.DataType = System.Type.GetType("EntryDate");
+                    EntryDate.ColumnName = "EntryDate";
+                    EntryDate.DefaultValue = "EntryDate";
+                    dt.Columns.Add(EntryDate);
+
+                    DataColumn TimeSpent = new DataColumn();
+                    TimeSpent.DataType = System.Type.GetType("System.String");
+                    TimeSpent.ColumnName = "TimeSpent";
+                    TimeSpent.DefaultValue = "TimeSpent";
+                    dt.Columns.Add(TimeSpent);
+
+                    DataColumn Billable = new DataColumn();
+                    Billable.DataType = System.Type.GetType("System.String");
+                    Billable.ColumnName = "Billable";
+                    Billable.DefaultValue = "Billable";
+                    dt.Columns.Add(Billable);
+                }
+                else
+                {
+                    FileStream fs = new FileStream(Environment.CurrentDirectory + @"\TimeSheet.xml", FileMode.Open);
+                    XmlSerializer xs = new XmlSerializer(typeof(DataSet));
+                    dt = ((DataSet) xs.Deserialize(fs)).Tables[0];
+                }
+
+            }
+            catch(Exception ex)
+            {
+                m_timeSheetBLL.LogExecption(ref ex); 
+            }
+            return dt;
+        }
+        #endregion
+
+        #region: Working Tasks section & Other working tasks
+        /// <summary>
+        /// check login access, load work category, user issues and other work tasks
+        /// </summary>
+        private void LoadTimesheet()
+        {
+            bool logStatus = m_timeSheetBLL.UseIntegratedSecu();
+            try
+            {
+
+                if (logStatus)
+                {
+                    toolStripStatusInfo.Text = "Connected...";
+
+                    LoadWorkCategory();
+                    LoadUserOtherIssues();
+                    SetTSComponents(false);
+
+                    LoadUserIssues();
+                }
+                else
+                {
+                    Main fviewLogIn = new Main();
+                    this.Hide();
+                    fviewLogIn.Show();
+                }
+            }
+            catch (Exception ex)
+            {
+                m_timeSheetBLL.LogExecption(ref ex);
+            }
+        }
+        /// <summary>
+        /// load work category list on application starting up
+        /// </summary>
+        private void LoadWorkCategory()
+        {
+            ddlWorkCategory.Items.Clear();
+
+            try
+            {
+                DataSet dsWorkCat = m_timeSheetBLL.LoadWorkCategory();
+
+                DataTable dtbl = dsWorkCat.Tables[0];
+
+                foreach (DataRow dr in dtbl.Rows)
+                {
+                    ddlWorkCategory.Items.Add(dr["TaskName"]);
+                }
+                ddlWorkCategory.Sorted = true;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Load work category fail: "+ex.Message, "Load work Category", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+        /// <summary>
+        /// load work category list on application starting up
+        /// </summary>
+        private void LoadUserOtherIssues()
+        {
+            lstOtherTasks.Items.Clear();
+
+            try
+            {    
+                DataSet dsOtherWorkCat = m_timeSheetBLL.GetOtherWorkIssues();
+                DataTable dtOther = dsOtherWorkCat.Tables[0];
+
+                foreach (DataRow dr in dtOther.Rows)
+                {
+                    lstOtherTasks.Items.Add(dr["TaskName"]);
+                }
+                //for (int i = 0; i < lstWorkingTask.Items.Count; i++ )
+                //{
+                //    lstOtherTasks.Items.Remove(lstWorkingTask.Items[i].ToString());
+                //}
+
+                    {
+                        if(File.Exists(Environment.CurrentDirectory + @"\SelectedTasks.xml"))
+                        {
+                            FileStream fs = new FileStream(Environment.CurrentDirectory + @"\SelectedTasks.xml",
+                                                           FileMode.Open);
+                            XmlSerializer xs = new XmlSerializer(typeof (DataSet));
+                            DataSet ds = (DataSet) xs.Deserialize(fs);
+                            fs.Close();
+
+                            for (int i = 0; i < ds.Tables[0].Rows.Count; i++)
+                            {
+                                lstOtherTasks.Items.Remove(ds.Tables[0].Rows[i][0].ToString());
+                            }
+                        }   
+                    }
+            }
+            catch(Exception ex)
+            {
+                MessageBox.Show("User's issues could not be loaded", "Load user's issues", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+        private void LoadUserIssues()
+        {
+            lstWorkingTask.Items.Clear();
+
+            try
+            {
+                DataSet dsUserIssues = m_timeSheetBLL.GetUserIssues();
+                DataTable dtbl = dsUserIssues.Tables[0];
+
+                if (File.Exists(Environment.CurrentDirectory + @"\SelectedTasks.xml"))
+                {
+                    FileStream fs = new FileStream(Environment.CurrentDirectory + @"\SelectedTasks.xml", FileMode.Open);
+                    XmlSerializer xs = new XmlSerializer(typeof(DataSet));
+                    DataSet ds = (DataSet)xs.Deserialize(fs);
+                    fs.Close();
+
+                    for (int i = 0; i < ds.Tables[0].Rows.Count; i++)
+                    {
+                        lstWorkingTask.Items.Add(ds.Tables[0].Rows[i][0].ToString());
+                    }
+                }
+
+                foreach (DataRow dr in dtbl.Rows)
+                {
+                    lstWorkingTask.Items.Add(dr["TaskName"]);
+                    lstOtherTasks.Items.Remove(dr["TaskName"]);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("User's issues could not be loaded", "Load user's issues", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// when a work category is selected 
+        /// company are loaded and listWorkTask as well as listOtherTask are populated
+        /// </summary>
+        private void ddlWorkCategory_SelectedValueChanged(object sender, EventArgs e)
+        {
+            if (ddlWorkCategory.SelectedItem != null)
+            {
+                SetTSComponents(true);
+
+                DataSet dsCompany = m_timeSheetBLL.LoadCompany();
+
+                DataTable dtblCompany = dsCompany.Tables[0];
+
+                foreach (DataRow dr in dtblCompany.Rows)
+                {
+                    ddlCompany.Items.Add(dr[0]);
+                }
+
+                //get the default company and set selected company item to it
+                ddlCompany.SelectedItem = m_timeSheetBLL.FindDefaultCompany(ddlWorkCategory.SelectedItem);
+                ddlCompany.Refresh();
+            }
+            else
+            {
+                SetTSComponents(false);
+            }
+        }
+        private void SetTSComponents(bool SetValue)
+        {
+            ddlCompany.Enabled = SetValue;
+            cmdStartStopTime.Enabled = SetValue;
+            txtComments.Enabled = SetValue;
+            cbBillable.Enabled = SetValue;
+        }
+        #endregion
+
+        #region: Menu bar
+        /// <summary>
+        /// log out the user from the system
+        /// </summary>
+        private void logOutToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            //first check if there is no task(s) to be saved i.e check open conn with db
+            if (cmdStartStopTime.Text.Equals("Stop Time"))
+            {
+                DialogResult result = MessageBox.Show("Save current task(s)?",
+                    "Save current task(s)",
+                    MessageBoxButtons.YesNoCancel,
+                    MessageBoxIcon.Question,
+                    MessageBoxDefaultButton.Button1);
+
+                if (result.Equals(DialogResult.Yes))
+                {
+                    try
+                    {
+                        //try and save user busy task and close conn with db
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show("Task could not be saved - " + ex.Message, "Save current task", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+                else if (!result.Equals(DialogResult.Cancel))
+                {
+                    Main fviewLogIn = new Main();
+                    this.Hide();
+                    fviewLogIn.Show();
+                }
+            }
+            else
+            {
+                Main fviewLogIn = new Main();
+                this.Hide();
+                fviewLogIn.Show();
+            }
+        }
+
+        /// <summary>
+        /// Access the system settings dialogbox
+        /// </summary>
+        private void settingsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            fviewSettings fvSettings = new fviewSettings();
+            fvSettings.ShowDialog();
+            LoadTimesheet();
+        }
+
+        /// <summary>
+        /// Open the online timesheet application when
+        /// the user click on Report->Timesheet Online
+        /// </summary>
+        private void timesheetOnlineToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            System.Diagnostics.Process.Start("http://gvwaculocity/timesheets/");
+        }
+
+        /// <summary>
+        /// Open the report window when
+        /// the user click on Report->View Data
+        /// </summary>
+        private void viewDataToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            //prompt the user to save on the current task 
+            if (cmdStartStopTime.Text.Equals("Stop Time"))
+            {
+                DialogResult result = MessageBox.Show("Save current task(s)?",
+                    "Save current task(s)",
+                    MessageBoxButtons.YesNoCancel,
+                    MessageBoxIcon.Question,
+                    MessageBoxDefaultButton.Button1);
+
+                if (result.Equals(DialogResult.Yes))
+                {
+                    try
+                    {
+                        //try and save user busy task in the Timesheet BD by cally DAL
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show("Task could not be saved - " + ex.Message);
+                    }
+
+                    //find out from Craig if we still open the report
+                }
+                else if (!result.Equals(DialogResult.Cancel))
+                {
+                    //then show the report form
+                    fviewReport fvReport = new fviewReport();
+                    fvReport.ShowDialog();
+                }
+            }
+            else
+            {
+                fviewReport fvReport = new fviewReport();
+                fvReport.ShowDialog();
+            }
+
+
+        }
+        #endregion
+
+        #region: Common code
+        /// <summary>
+        /// TODO: check user credential 
+        /// if OK - load current user work category and company
+        /// </summary>
+        private void fviewTimesheet_Load(object sender, EventArgs e)
+        {
+            LoadTimesheet();
+        }
+        /// <summary>
+        /// when the window is closed, save the current task information
+        /// </summary>
+        /// <param name="e"></param>
+        protected override void OnClosing(CancelEventArgs e)
+        {
+            if (cmdStartStopTime.Text.Equals("Stop Time"))
+            {
+                DialogResult result = MessageBox.Show("Save current task before closing?", "Save busy task", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1);
+
+                if (result == DialogResult.Yes)
+                {
+                    try
+                    {
+                        m_timeSheetBLL.EntryDate = DateTime.Today.Date;
+                        m_timeSheetBLL.WorkCategory = ddlWorkCategory.SelectedItem.ToString();
+                        m_timeSheetBLL.Company = ddlCompany.SelectedItem.ToString();
+                        m_timeSheetBLL.Comment = txtComments.Text;
+
+                        TimeSpan duration = DateTime.Parse(txtDuration.Text).AddMinutes(30).Subtract(DateTime.Parse(txtStartTime.Text));
+                        m_timeSheetBLL.TimeSpent = duration.TotalHours;
+                        m_timeSheetBLL.BillableTime = duration.TotalHours;
+
+                        m_timeSheetBLL.UpdateTimesheet();
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show("Current task could not be saved:" + ex.Message, "Save Failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+
+                    Properties.Settings.Default.Save();
+                    base.OnClosing(e);
+                }
+                else
+                {
+                    Properties.Settings.Default.Save();
+                    base.OnClosing(e);
+                }
+            }
+            else
+            {
+                Properties.Settings.Default.Save();
+                base.OnClosing(e);
+            }
+        }
+        #endregion
+
+        private void lstWorkingTask_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            try
+            {
+                DataSet ds = new DataSet();
+                ds = m_timeSheetBLL.LoadTaskInfo(lstWorkingTask.SelectedValue.ToString());    
+                for(int i = 0; i < ddlWorkCategory.Items.Count; i++)
+                {
+                    if(ddlWorkCategory.Items[i].ToString() == ds.Tables[0].Rows[0]["TaskName"].ToString())
+                    {
+                        ddlWorkCategory.SelectedIndex = i;
+                    }
+                }
+                for(int i=0; i<ddlCompany.Items.Count; i++)
+                {
+                    if(ddlCompany.Items[i].ToString()==ds.Tables[0].Rows[0]["Company"].ToString())
+                    {
+                        ddlCompany.SelectedIndex = i;
+                    }
+                }
+            }
+            catch(Exception ex)
+            {
+                m_timeSheetBLL.LogExecption(ref ex);
+
+            }
+        }
+    }
+}

@@ -1,0 +1,872 @@
+﻿using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.IO;
+using System.Xml.Serialization;
+using Aculocity.ProjectName.BLL;
+using System.Data;
+using System.Drawing;
+using System.Text;
+using System.Windows.Forms;
+using System.Data.Sql;
+using System.Data.SqlClient;
+
+namespace Aculocity.ProjectName.PL
+{
+    public partial class fviewSettings : Form
+    {
+        private String m_server = "(local)";
+        private String m_database;
+        private bool m_integratedSecurity = true;
+        private String m_username;
+        private String m_password;
+        private String m_confirmPwd;
+
+        private bool m_timerStatus;
+        private int m_timerMinute;
+        private String m_webAddressURL;
+
+        private bool _settingSaved;
+
+        TimesheetBLL m_timesheetBLL = new TimesheetBLL();
+        ReadWriteAppConfig Config = new ReadWriteAppConfig("App.config", Environment.UserName);
+
+        public fviewSettings()
+        {
+            InitializeComponent();
+        }
+
+        #region Methods relative to settings: server access tab
+
+        /// <summary>
+        /// encrypt the password text erea on user selection
+        /// </summary>
+        private void cblPassword_CheckedChanged(object sender, EventArgs e)
+        {
+            //EnableUserID();
+        }
+        /// <summary>
+        /// enable user identification
+        /// </summary>
+        private void EnableUserID()
+        {
+            txtPassword.UseSystemPasswordChar = cblPassword.Checked;
+            txtConfirmPwd.UseSystemPasswordChar = cblPassword.Checked;
+        }
+
+        /// <summary>
+        /// on user click 
+        /// the list of servers from the network are loaded
+        /// </summary>
+        private void cmdRefreshSrv_Click(object sender, EventArgs e)
+        {
+            LoadServersList();
+        }
+
+        /// <summary>
+        /// when the dropdown button is clicked
+        /// the list of database is loaded
+        /// </summary>
+        private void ddlDatabase_DropDown(object sender, EventArgs e)
+        {
+            LoadDatabasesList();
+        }
+
+        private void ddlServer_SelectedValueChanged(object sender, EventArgs e)
+        {
+            m_server = ddlServer.SelectedItem.ToString();
+        }
+
+        private void ddlDatabase_SelectedValueChanged(object sender, EventArgs e)
+        {
+            m_database = ddlDatabase.SelectedItem.ToString();
+        }
+
+        private void txtConfirmPwd_TextChanged(object sender, EventArgs e)
+        {
+            m_password = txtConfirmPwd.Text;
+        }
+
+        private void cblSetUsernamePwd_CheckedChanged(object sender, EventArgs e)
+        {
+            //ShowUserID(!cblSetUsernamePwd.Checked);
+        }
+
+        /// <summary>
+        /// set user credential to read only when "set username and password" is selected
+        /// </summary>
+        /// <param name="SetValue">the value to set to</param>
+        private void ShowUserID(bool SetValue)
+        {
+            txtUsername.Enabled = SetValue;
+            txtPassword.Enabled = SetValue;
+            txtConfirmPwd.Enabled = SetValue;
+            lblUsername.Enabled = SetValue;
+            cblPassword.Enabled = SetValue;
+            lblCfrmPwd.Enabled = SetValue;
+        }
+
+        /// <summary>
+        /// check if both password matches
+        /// </summary>
+        private void CheckUserIDContent()
+        {
+            if (this.cblSetUsernamePwd.Checked == true)
+            {
+                if (txtUsername.TextLength > 0)
+                {
+                    errorProvider.SetError(txtUsername, "");
+                    m_username = txtUsername.Text;
+                }
+                else
+                {
+                    errorProvider.SetError(txtUsername, "The assigned password cannot be blank");
+                }
+
+                if (txtConfirmPwd.Text == txtPassword.Text)
+                {
+                    errorProvider.SetError(txtConfirmPwd, "");
+                }
+                else
+                {
+                    errorProvider.SetError(txtConfirmPwd, "The password and confirmation entries do not match");
+                }
+
+                if (txtPassword.TextLength > 0)
+                {
+                    errorProvider.SetError(txtPassword, "");
+                }
+                else
+                {
+                    errorProvider.SetError(txtPassword, "The assigned password cannot be blank");
+                }
+            }
+        }
+        /// <summary>
+        /// when the text value is changed in the username or password textbox, the save button is enabled
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void txtUsername_TextChanged(object sender, EventArgs e)
+        {
+            RefreshSaveCancelBtn(true);
+        }
+
+        private void ddlServer_SelectedValueChanged_1(object sender, EventArgs e)
+        {
+            RefreshSaveCancelBtn(true);
+        }
+
+        private void cblSetUsernamePwd_CheckedChanged_1(object sender, EventArgs e)
+        {
+            RefreshSaveCancelBtn(true);
+
+            if (sender == cblSetUsernamePwd)
+            {
+                ShowUserID(!cblSetUsernamePwd.Checked);
+            }
+
+            if (sender == cblPassword)
+            {
+                EnableUserID();
+            }
+        }
+        #endregion
+
+        #region Methods relative to settings: working task tab
+        
+        /// <summary>
+        /// on form load , fill available working task list
+        /// </summary>
+        private void FillAvailableWT()
+        {
+            try
+            {
+                DataSet ds = m_timesheetBLL.LoadWorkCategory();
+                DataTable dtbl = ds.Tables[0];
+
+                lstAvailableWT.Items.Clear();
+                foreach (DataRow dr in dtbl.Rows)
+                {
+                    lstAvailableWT.Items.Add(dr["TaskName"]);
+                }
+            }
+            catch (NullReferenceException ex)
+            {
+                MessageBox.Show("An error occured: "+ex.Message);
+            }
+
+        }
+
+        /// <summary>
+        /// check the db for new added work task and reload them in the available wirk task's list
+        /// </summary>
+        private void btnReloadAvailable_Click(object sender, EventArgs e)
+        {
+            FillAvailableWT();
+        }
+        
+        private void cmdAddWT_Click(object sender, EventArgs e)
+        {
+            if (lstAvailableWT.SelectedItem != null)
+            {
+                for (int i = 0; i < lstAvailableWT.SelectedItems.Count; i++)
+                {
+                    lstSelectedWT.Items.Add(lstAvailableWT.SelectedItems[i]);
+                    
+                }
+                for (int i = 0; i < lstSelectedWT.Items.Count; i++)
+                {
+                    int index;
+                    index = lstAvailableWT.Items.IndexOf(lstSelectedWT.Items[i]);
+                    if(index != -1)
+                    lstAvailableWT.Items.Remove(lstAvailableWT.Items[index]);
+                }
+            }
+            //SaveWorkTask();
+        }
+
+        private void cmdAddAllWT_Click(object sender, EventArgs e)
+        {
+            if (lstAvailableWT.Items != null)
+            {
+                lstSelectedWT.Items.AddRange(lstAvailableWT.Items);
+                lstAvailableWT.Items.Clear();
+            }
+        }
+
+        private void cmdRemoveWT_Click(object sender, EventArgs e)
+        {
+            if (lstSelectedWT.SelectedItem != null)
+            {
+                int count = lstSelectedWT.SelectedItems.Count;
+                for (int i = 0; i < lstSelectedWT.SelectedItems.Count; i++)
+                {
+                    lstAvailableWT.Items.Add(lstSelectedWT.SelectedItems[i]);
+                }
+                for (int i = 0; i < lstSelectedWT.SelectedItems.Count; i++)
+                {
+                    lstSelectedWT.Items.Remove(lstSelectedWT.SelectedItems[i]);
+                }
+            }
+        }
+
+        private void cmdRemoveAllWT_Click(object sender, EventArgs e)
+        {
+            if (lstSelectedWT.Items != null)
+            {
+                lstAvailableWT.Items.AddRange(lstSelectedWT.Items);
+                lstSelectedWT.Items.Clear();
+            }
+        }
+        /// <summary>
+        /// when the size of either the lstavailable or lstselectedWT change , the save button is enabled
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void lstAvailableWT_ClientSizeChanged(object sender, EventArgs e)
+        {
+            RefreshSaveCancelBtn(true);
+        }
+        #endregion
+
+        #region Methods relative to settings: general settings tab
+        /// <summary>
+        /// set timer setting default option
+        /// </summary>
+        private void TimerDefaultOpt(bool SetValue)
+        {
+            numericUpDownMin.Enabled = SetValue;
+        }
+
+        private void radShowReminder_CheckedChanged(object sender, EventArgs e)
+        {
+            //radDontShowReminder.Checked = !radShowReminder.Checked;
+            //this.TimerDefaultOpt(radShowReminder.Checked);
+        }
+
+        private void txtEnterURL_Validating(object sender, CancelEventArgs e)
+        {
+            if (txtEnterURL.TextLength > 0)
+            {
+                errorProvider.SetError(txtEnterURL, "");
+                m_webAddressURL = txtEnterURL.Text;
+            }
+            else
+            {
+                errorProvider.SetError(txtEnterURL, "The assigned website url cannot be blank");
+            }
+        }
+
+        private void radDontShowReminder_CheckedChanged(object sender, EventArgs e)
+        {
+            RefreshSaveCancelBtn(true);
+
+            if (sender == radShowReminder)
+            {
+                radDontShowReminder.Checked = !radShowReminder.Checked;
+                this.TimerDefaultOpt(radShowReminder.Checked);
+            }
+        }
+
+        private void numericUpDownMin_ValueChanged(object sender, EventArgs e)
+        {
+            RefreshSaveCancelBtn(true);
+        }
+
+        private void txtEnterURL_TextChanged(object sender, EventArgs e)
+        {
+            RefreshSaveCancelBtn(true);
+        }
+        #endregion
+
+        #region Common Methods
+
+        /// <summary>
+        /// On form load, populate all work category
+        /// </summary>
+        private void OnLoad(object sender, EventArgs e)
+        {
+            //Hide user ID settings on server access tab
+            this.ShowUserID(false);
+
+            //fill in available working task list
+            //FillAvailableWT();
+
+            TimerDefaultOpt(false);
+
+            HideReloadWork(false);
+            //ServerSettings still needs to be decided on, if it will be used for future use.
+            //LoadServerSetting();
+            LoadWorkTaskSetting();
+            LoadGeneralSetting();
+
+            RefreshSaveCancelBtn(false);
+            _settingSaved = false;
+        }
+
+        /// <summary>
+        /// save settings
+        /// </summary>
+        private void cmdSettingSave_Click(object sender, EventArgs e)
+        {
+            if (ddlServer.Text.Length == 0)
+            {
+                m_server = null;
+            }
+            else
+            {
+                m_server = ddlServer.Text;
+            }
+
+            if (ddlDatabase.Text.Length == 0)
+            {
+                m_database = null;
+            }
+            else
+            {
+                m_database = ddlDatabase.Text;
+            }
+
+            //set related secuity info
+            m_integratedSecurity = cblSetUsernamePwd.Checked;
+            if (m_integratedSecurity)
+            {
+                m_username = null;
+                m_password = null;
+            }
+            else
+            {
+                m_username = txtUsername.Text;
+                m_password = txtPassword.Text;
+            }
+
+            switch (tabCtrlSettings.SelectedTab.Name)
+            {
+                case "tabServerAccess":
+                    SaveServerSetting();
+                    _settingSaved = true;
+                    break;
+                case "tabWorkingTask":
+                    SaveWorkTask();
+                    _settingSaved = true;
+                    break;
+                case "tabGenSettings":
+                    SaveGeneralSetting();
+                    _settingSaved = true;
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// save server access settings to the app.config file
+        /// </summary>
+        private void SaveServerSetting()
+        {
+            try
+            {
+                Config.Server = ddlServer.SelectedItem.ToString();
+                Config.Database = ddlDatabase.SelectedItem.ToString();
+                Config.UsernamePwdStatus = cblSetUsernamePwd.Checked;
+                Config.Username = txtUsername.Text;
+                Config.Password = txtPassword.Text;
+                Config.ProtectPwd = cblPassword.Checked;
+
+                Config.SetServerSetting();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this,
+                    string.Format("Failed to save server settings: {0} ({1})",
+                                  ex.Message, ex.Source),
+                    "Save Server Settings", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// save selected work task by the user to app.config file
+        /// </summary>
+        private void SaveWorkTask()
+        {
+            try
+            {
+                XmlSerializer ser = new XmlSerializer(typeof(DataSet));
+                DataSet ds = new DataSet();
+                DataTable dt = new DataTable();
+                DataRow row;
+                DataColumn task = new DataColumn();
+                task.DataType = System.Type.GetType("System.String");
+                task.ColumnName = "Tasks";
+                task.DefaultValue = "Tasks";
+                dt.Columns.Add(task);
+                
+                String[] selectedWorkTask = new String[lstSelectedWT.Items.Count];
+                for (int i = 0; i < selectedWorkTask.Length; i++)
+                {
+                    row = dt.NewRow();
+                    selectedWorkTask[i] = lstSelectedWT.Items[i].ToString();
+                    row[0] = lstSelectedWT.Items[i].ToString();
+                    dt.Rows.Add(row);
+                }
+                File.Delete(Environment.CurrentDirectory + @"\SelectedTasks.xml");
+                  if (dt.Rows.Count > 0)
+                  {
+                      ds.Tables.Add(dt);
+                      FileStream fs =
+                          new FileStream(Environment.CurrentDirectory + @"\SelectedTasks.xml",
+                                         FileMode.Create);
+                      ser.Serialize(fs, ds);
+                      fs.Close();
+                  }
+                //Config.SelectedWorkTask = selectedWorkTask;
+                //Config.SetSelectedWorkTask();
+                //String[] availableWorkTask = new String[lstAvailableWT.Items.Count];
+
+                //for (int i = 0; i < availableWorkTask.Length; i++)
+                //{
+                //    availableWorkTask[i] = lstAvailableWT.Items[i].ToString();
+                //}
+
+                //Config.AvailableWorkTask = availableWorkTask;
+                //Config.SetAvailableWorkTask();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this,
+                    string.Format("Failed to save work tasks settings: {0} ({1})",
+                                  ex.Message, ex.Source),
+                    "Save Work Tasks Settings", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// save general setting information to app.config file
+        /// </summary>
+        private void SaveGeneralSetting()
+        {
+            try
+            {
+                //Config.SetTimer = radDontShowReminder.Checked;
+                //Config.ReminderTime = int.Parse(numericUpDownMin.Value.ToString());
+                //Config.OnlineWebAddress = txtEnterURL.Text;
+                //Config.SetGeneralSetting();
+
+                FileStream fs = new FileStream(Environment.CurrentDirectory + @"\GeneralSettings.xml", FileMode.Create);
+                XmlSerializer xs = new XmlSerializer(typeof(DataSet));
+
+
+
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this,
+                    string.Format("Failed to save general settings: {0} ({1})",
+                                  ex.Message, ex.Source),
+                    "Save general Settings", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void tabCtrlSettings_Selected(object sender, TabControlEventArgs e)
+        {
+            switch (tabCtrlSettings.SelectedTab.Name)
+            {
+                case "tabServerAccess":
+                    HideReloadWork(false);
+                    if (_settingSaved == false)
+                    {
+                        RefreshSaveCancelBtn(false);
+                    }
+                    break;
+                case "tabWorkingTask":
+                    HideReloadWork(true);
+                    if (_settingSaved == false)
+                    {
+                        RefreshSaveCancelBtn(false);
+                    }
+                    break;
+                case "tabGenSettings":
+                    HideReloadWork(false);
+                    if (_settingSaved == false)
+                    {
+                        RefreshSaveCancelBtn(false);
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
+        /// <summary>
+        /// only display reload button when tabWorkTask is clicked
+        /// </summary>
+        /// <param name="value">the value that set the visibility</param>
+        private void HideReloadWork(bool value)
+        {
+            btnReloadAvailable.Visible = value;
+        }
+
+        /// <summary>
+        /// load setting server access to setting window
+        /// </summary>
+        private void LoadServerSetting()
+        {
+            try
+            {
+                Config.GetServerSetting();
+
+                ddlServer.Items.Add(Config.Server);
+                ddlServer.SelectedItem = Config.Server;
+                ddlDatabase.Items.Add(Config.Database);
+                ddlDatabase.SelectedItem = Config.Database;
+                cblSetUsernamePwd.Checked = Config.UsernamePwdStatus;
+                txtUsername.Text = Config.Username;
+                txtPassword.Text = Config.Password;
+                txtConfirmPwd.Text = Config.Password;
+                cblPassword.Checked = Config.ProtectPwd;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this,
+                    string.Format("Failed to load server settings: {0} ({1})",
+                                  ex.Message, ex.Source),
+                    "Server Settings", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+        /// <summary>
+        /// load setting selected working tasks to setting window
+        /// </summary>
+        private void LoadWorkTaskSetting()
+        {
+            try
+            {
+                DataSet dsOtherWorkCat = m_timesheetBLL.GetOtherWorkIssues();
+                DataTable dtOther = dsOtherWorkCat.Tables[0];
+                foreach (DataRow dr in dtOther.Rows)
+                {
+                    lstAvailableWT.Items.Add(dr["TaskName"]);
+                }
+                if (File.Exists(Environment.CurrentDirectory + @"\SelectedTasks.xml"))
+                {
+                    FileStream fs = new FileStream(Environment.CurrentDirectory + @"\SelectedTasks.xml", FileMode.Open);
+                    XmlSerializer xs = new XmlSerializer(typeof(DataSet));
+                    DataSet ds = (DataSet)xs.Deserialize(fs);
+                    fs.Close();
+
+                    for (int i = 0; i < ds.Tables[0].Rows.Count; i++)
+                    {
+                        lstSelectedWT.Items.Add(ds.Tables[0].Rows[i][0].ToString());
+                        lstAvailableWT.Items.Remove(ds.Tables[0].Rows[i][0].ToString());
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this,
+                    string.Format("Failed to load work tasks settings: {0} ({1})",
+                                  ex.Message, ex.Source),
+                    "Work Tasks Settings", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+        /// <summary>
+        /// load setting general setting to setting window
+        /// </summary>
+        private void LoadGeneralSetting()
+        {
+            try
+            {
+                Config.GetGeneralSetting();
+
+                radDontShowReminder.Checked = Config.SetTimer;
+                if (Config.SetTimer == false)
+                {
+                    radShowReminder.Checked = true;
+                    numericUpDownMin.Value = Decimal.Parse(Config.ReminderTime.ToString("d"));
+                }
+                txtEnterURL.Text = Config.OnlineWebAddress;
+            }
+            catch (Exception ex)
+            {
+                //MessageBox.Show(ex.Message.ToString(), "Load general settings");
+                MessageBox.Show(this,
+                    string.Format("Failed to load general settings: {0} ({1})",
+                                  ex.Message, ex.Source),
+                    "General Settings", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// change the save button state as well as the cancel button
+        /// </summary>
+        /// <param name="Value">value the state will be</param>
+        private void RefreshSaveCancelBtn(bool Value)
+        {
+            cmdSettingSave.Enabled = Value;
+
+            //if (Value == true)
+            //{
+            //    cmdSettingCancel.Text = "&Cancel";
+            //}
+            //else
+            //{
+            //    cmdSettingCancel.Text = "&Close";
+            //}
+        }
+
+        private void cmdSettingCancel_Click(object sender, EventArgs e)
+        {
+            this.Dispose();
+        }
+        #endregion
+
+        #region Public API for the settings dialog : server access tab
+
+        public string Server
+        {
+            get { 
+                return m_server;
+            }
+            set { 
+                m_server = value; 
+            }
+        }
+
+        public string Database
+        {
+            get { 
+                return m_database; 
+            }
+            set { 
+                m_database = value;
+            }
+        }
+
+        public bool UseIntegratedSecurity
+        {
+            get { 
+                return m_integratedSecurity; 
+            }
+            set { 
+                m_integratedSecurity = value; 
+            }
+        }
+
+        public string UserName
+        {
+            get { 
+                return m_username; 
+            }
+            set {
+                m_username = value; 
+            }
+        }
+
+        public string Password
+        {
+            get { 
+                return m_password; 
+            }
+            set { 
+                m_password = value; 
+            }
+        }
+
+        public string ConfirmPwd
+        {
+            get
+            {
+                return m_confirmPwd;
+            }
+            set
+            {
+                this.m_confirmPwd = value;
+            }
+        }
+        #endregion
+
+        #region Public API for the settings dialog : general settings
+        public Boolean TimerStatus
+        {
+            get
+            {
+                return m_timerStatus;
+            }
+            set
+            {
+                this.m_timerStatus = value;
+            }
+        }
+
+        public int TimerMinute
+        {
+            get
+            {
+                return m_timerMinute;
+            }
+            set
+            {
+                this.m_timerMinute = value;
+            }
+        }
+
+        public String WebAddressURL
+        {
+            get
+            {
+                return m_webAddressURL;
+            }
+            set
+            {
+                this.m_webAddressURL = value;
+            }
+        }
+        #endregion
+
+        #region Database-related code
+
+        /// <summary>
+        /// load up the list of available servers from the network
+        /// </summary>
+        void LoadServersList()
+        {
+            try
+            {
+                //set to true since loading will take time
+                this.UseWaitCursor = true;
+
+                // clear previous contents
+                ddlServer.Items.Clear();
+                ddlServer.Items.Insert(0,"(local)");
+
+                // obtain the list of available servers in this network
+                DataTable servers = SqlDataSourceEnumerator.Instance.GetDataSources();
+
+                // cache the column indexes
+                int nameIndex = servers.Columns.IndexOf("ServerName");
+                int instanceIndex = servers.Columns.IndexOf("InstanceName");
+
+                // load data into the combo-box
+                foreach (DataRow serverRow in servers.Rows)
+                {
+                    if (!(serverRow[instanceIndex].Equals(DBNull.Value)))
+                    {
+                        if ("MSSQLSERVER".Equals((string)serverRow[instanceIndex], StringComparison.CurrentCultureIgnoreCase))
+                            ddlServer.Items.Add(serverRow[nameIndex]);
+                        else
+                            ddlServer.Items.Add(serverRow[nameIndex] + "\\" + serverRow[instanceIndex]);
+                    }
+                }
+            }
+            finally
+            {
+                UseWaitCursor = false;
+            }
+        }
+
+        // load the list of databases in the currently selected server
+        // into the "databases" combo-box
+        void LoadDatabasesList()
+        {
+            try
+            {
+                this.UseWaitCursor = true;
+
+                // clear previous contents
+                ddlDatabase.Items.Clear();
+
+                // build a connection string based on server name and
+                // authentication information from the dialog
+                // Use DbConnectionString to safely add name/value pairs
+                SqlConnectionStringBuilder csbuilder = new SqlConnectionStringBuilder();
+                if (ddlServer.Text.Length > 0)
+                {
+                    //TODO: when server.Text = (local) an error is generated
+                    if (ddlServer.Text == "(local)")
+                    {
+                        return;
+                    }
+                    csbuilder.DataSource = ddlServer.Text;
+                }
+                if (cblSetUsernamePwd.Checked)
+                    csbuilder.IntegratedSecurity = true;
+                else
+                {
+                    csbuilder.UserID = txtUsername.Text;
+                    csbuilder.Password = txtPassword.Text;
+                }
+
+                // don't want this connection to be long-lived
+                csbuilder.Pooling = false;
+
+                using (SqlConnection conn = new SqlConnection(csbuilder.ToString()))
+                {
+                    conn.Open();
+
+                    // use the schema API to get the list of databases
+                    DataTable databases = conn.GetSchema("Databases");
+
+                    foreach (DataRow row in databases.Rows)
+                    {
+                        ddlDatabase.Items.Add(row["database_name"]);
+                    }
+                }
+            }
+            catch (SqlException sqlex)
+            {
+                MessageBox.Show(this,
+                    string.Format("Failed to obtain the list of databases: {0} ({1})",
+                                  sqlex.Message, sqlex.Number),
+                    "Databases", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                UseWaitCursor = false;
+            }
+        }
+
+        #endregion
+
+        
+    }
+}

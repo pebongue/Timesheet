@@ -1,0 +1,47 @@
+K 25
+svn:wc:ra_dav:version-url
+V 69
+/svn/Aculocity_TimesheetDesktop/!svn/ver/22/trunk/src/ProjectName.BLL
+END
+ReadWriteAppConfig.cs
+K 25
+svn:wc:ra_dav:version-url
+V 91
+/svn/Aculocity_TimesheetDesktop/!svn/ver/15/trunk/src/ProjectName.BLL/ReadWriteAppConfig.cs
+END
+AppTimesheetConfig.cs
+K 25
+svn:wc:ra_dav:version-url
+V 90
+/svn/Aculocity_TimesheetDesktop/!svn/ver/4/trunk/src/ProjectName.BLL/AppTimesheetConfig.cs
+END
+TimesheetAppDoConfig.cs
+K 25
+svn:wc:ra_dav:version-url
+V 92
+/svn/Aculocity_TimesheetDesktop/!svn/ver/4/trunk/src/ProjectName.BLL/TimesheetAppDoConfig.cs
+END
+TimesheetBLL.cs
+K 25
+svn:wc:ra_dav:version-url
+V 85
+/svn/Aculocity_TimesheetDesktop/!svn/ver/25/trunk/src/ProjectName.BLL/TimesheetBLL.cs
+END
+AppConfigFacilitator.cs
+K 25
+svn:wc:ra_dav:version-url
+V 92
+/svn/Aculocity_TimesheetDesktop/!svn/ver/4/trunk/src/ProjectName.BLL/AppConfigFacilitator.cs
+END
+SomeClass.cs
+K 25
+svn:wc:ra_dav:version-url
+V 81
+/svn/Aculocity_TimesheetDesktop/!svn/ver/4/trunk/src/ProjectName.BLL/SomeClass.cs
+END
+ProjectName.BLL.csproj
+K 25
+svn:wc:ra_dav:version-url
+V 92
+/svn/Aculocity_TimesheetDesktop/!svn/ver/25/trunk/src/ProjectName.BLL/ProjectName.BLL.csproj
+END

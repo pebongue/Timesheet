@@ -1,0 +1,68 @@
+﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.IO;
+using System.Text;
+using System.Windows.Forms;
+using System.Xml.Serialization;
+using Aculocity.ProjectName.BLL;
+
+namespace Aculocity.ProjectName.PL
+{
+    public partial class fviewReport : Form
+    {
+        TimesheetBLL m_timeSheetBLL = new TimesheetBLL();
+        /// <summary>
+        /// Initialise component and display the name of the current user
+        /// </summary>
+        public fviewReport()
+        {
+            InitializeComponent();
+            LoadlstTimeSheet();
+            this.Text = "Aculocity Timesheet - " + System.Environment.UserName;
+        }
+        
+        /// <summary>
+        /// Close the report window without committing any task
+        /// </summary>
+        private void cmdCancelReport_Click(object sender, EventArgs e)
+        {
+            this.Close();
+        }
+        /// <summary>
+        //TODO: keep the content align in the form
+        /// </summary>
+        public void LoadlstTimeSheet()
+        {
+            DataTable dt;
+            try
+            {
+                FileStream fs = new FileStream(Environment.CurrentDirectory + @"\TimeSheet.xml", FileMode.Open);
+                XmlSerializer xs = new XmlSerializer(typeof(DataSet));
+                dt = ((DataSet) xs.Deserialize(fs)).Tables[0];
+                
+                for(int i=0; i< dt.Rows.Count; i++)
+                {
+                    lstTimeSheet.Items.Add("Company", dt.Rows[i]["Company"].ToString());
+                    lstTimeSheet.Items.Add("WorkCategory", dt.Rows[i]["WorkCategory"].ToString());
+                    lstTimeSheet.Items.Add("Comments", dt.Rows[i]["Comment"].ToString());
+                    lstTimeSheet.Items.Add("Hours", dt.Rows[i]["TimeSpent"].ToString());
+                    lstTimeSheet.Items.Add("Billable", dt.Rows[i]["Billable"].ToString());
+                    lstTimeSheet.Items.Add("Date", dt.Rows[i]["EntryDate"].ToString());
+
+                }
+            }
+            catch(Exception ex)
+            {
+                m_timeSheetBLL.LogExecption(ref ex); 
+            }
+        }
+
+        private void lstTimeSheet_SelectedIndexChanged(object sender, EventArgs e)
+        {
+
+        }
+    }
+}
